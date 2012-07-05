@@ -104,7 +104,6 @@ print STDERR " */\n";
 # Loop through all of the parsed function declarations.
 foreach my $line (@$fdeclsArrayRef)
 {
-print $line."\n\n\n";  
   $line =~ s/\n/ /g; # Function declarations may come in multiple lines. Get rid of the multiple lines and replace with space
   $line =~ s/\s+/ /g; # Replace multiple spaces with a single space
 
