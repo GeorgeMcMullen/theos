@@ -118,7 +118,8 @@ foreach my $line (@$fdeclsArrayRef)
       $functionName=$line;
       $functionName=~ s/\(.*$//g;
       $functionName= &trim($functionName);
-      $functionName=~ s/.*\s//;
+      $functionName=~ s/^extern //; # We need to get rid of "extern" to work with MobileSubstrate
+      $functionName=~ s/.*\s//; # This should get rid of the function type
   
       # Get the function parameter
       $functionParameters=$line;
@@ -130,7 +131,7 @@ foreach my $line (@$fdeclsArrayRef)
       # Get the function type
       $functionType=$line;
       $functionType=~ s/\(.*$//g;
-      $functionType=~ s/"$functionName"//;
+      $functionType=~ s/$functionName//;
       $functionType= &trim($functionType);
       $functionType=~ s/^extern //; # We need to get rid of "extern" to work with MobileSubstrate
   
