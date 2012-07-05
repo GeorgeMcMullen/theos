@@ -33,6 +33,9 @@ if (! -f $ARGV[0])
   exit;
 }
 
+$TMPDIR="/tmp"; # Whereever a temporary file can live
+$PID=$$; # The current process ID (to make a unique temporaray file
+
 use File::Basename;
 use C::Scan;
 
@@ -46,6 +49,39 @@ $headerFullPath=~ s#\.framework/.*$##;
 $headerFullPath=~ s#^.*/##;
 $headerFullPath=$headerFullPath."/".basename($ARGV[0]);
 
+# We are going to get rid of a whole bunch of stuff so that C::Scan has an easier time parsing it and output it to a temporary file.
+# We don't really need to process the header file in all it's completeness, we just want to get any function names we can.
+$processedHeader=$TMPDIR."/".$headerFileName."-$PID.h";
+
+open (INFILE, $ARGV[0]); # Read in the file
+@inFileArray = <INFILE>;
+close(INFILE);
+
+$inFile = join('',@inFileArray); # Make it a single line
+$inFile =~ s#\/\*.*?\*\/##sg; # Get rid of multiline comments
+$inFile =~ s#\\\s+\n##g; # Merge lines that end in a backslash with their next line
+# For some reason C::Scan chokes on extern "C" { .* } so we'll get rid of it
+if ($inFile =~ /extern.*\"C\"/)
+{
+  $inFile =~ s/.*extern.*\"C\".*\n.*{//i; # Sometimes the opening bracket is on the next line
+  $inFile =~ s/.*extern.*\"C\".*{//i; # Sometimes it's on the same line
+  $lastCurly = rindex($inFile, '}'); # Well get rid of the last bracket, hopefully it's the bracket that matches
+  $inFile = substr($inFile, 0, $lastCurly-1).substr($inFile, $lastCurly);
+}
+
+@inFileArray = split(/\n/, $inFile); # We need to work with the file as an array again
+open (OUTFILE, ">".$processedHeader); # Opening our TMP file for writing
+for ($i=0; $i<$#inFileArray; $i++)
+{
+  $inFileArray[$i] =~ s#//.*##g; # Get rid of end of line comments
+  $inFileArray[$i] =~ s/^#.*//ig; # Get rid of single line defines, includes, pragmas, and if style statements that start at the beginning of the line
+  $inFileArray[$i] =~ s/^\s+#.*//ig; # Get rid of single line defines, includes, pragmas and if style statements that have a space in the beginning
+  $inFileArray[$i] =~ s/\).*?__/\)\n__/; # For some reason C::Scan has problems detecting when a function has a compiler __attribute on the same line
+  print OUTFILE $inFileArray[$i]."\n";
+}
+close(OUTFILE);
+
+
 # We need a little documentation here about ignoring certain errors that come
 # up when parsing a header file. Most of the time it means nothing and is
 # because of the hack that needed to be in place in order to make C::Scan not
@@ -57,8 +93,8 @@ print STDERR " * Typically, you don't have to worry about the following errors r
 print STDERR " *\n";
 
 # Scan the file using C::Scan
-$c = new C::Scan(filename => $ARGV[0],
-                 add_cppflags => "-isysroot/nonexistant"); # This is a hack so that it will ignore all the includes by setting the system root to a nonexistant directory. Otherwise, we get a huge list of all declarations from all the included headers.
+$c = new C::Scan(filename => $processedHeader,
+                 add_cppflags => "-isysroot/nonexistant -fwhole-program"); # This is a hack so that it will ignore all the includes by setting the system root to a nonexistant directory. Otherwise, we get a huge list of all declarations from all the included headers.
 my $fdeclsArrayRef = $c->get('fdecls'); # We use this instead of parsed_fdecls because we don't really want to parse everything and it will probably break on some undefined types.
 
 print STDERR " *\n";
@@ -68,9 +104,10 @@ print STDERR " */\n";
 # Loop through all of the parsed function declarations.
 foreach my $line (@$fdeclsArrayRef)
 {
+print $line."\n\n\n";  
   $line =~ s/\n/ /g; # Function declarations may come in multiple lines. Get rid of the multiple lines and replace with space
   $line =~ s/\s+/ /g; # Replace multiple spaces with a single space
-  
+
   if ($line =~ /\(/)
   {
     $line =~ s/__attribute.*$/\;/;                # Get rid of any prepocessing stuff that might be at the end of the line.
@@ -179,7 +216,8 @@ print "\n";
 print "  [pool release];\n";
 print "}\n";
 
-
+# Remove the temporary file
+unlink($processedHeader);
 
 # Perl trim function to remove whitespace from the start and end of the string
 sub trim($)
