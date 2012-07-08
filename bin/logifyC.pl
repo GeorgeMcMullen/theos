@@ -197,13 +197,6 @@ print "  NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];\n";
 print "  // Insert the name of the framework you are injecting into before Log\n";
 print "  NSLog(@\"${headerFileName}Log loaded in: %@\", [[NSProcessInfo processInfo] processName]);\n";
 print "\n";
-print "  // These next few lines will create a log file in the DCIM directory and change all stdout output to that file.\n";
-print "  char buffer[4096] = {0};\n";
-print "  [[NSString stringWithFormat:@\"/private/var/mobile/Media/DCIM/%@.log\", [[NSProcessInfo processInfo] processName]] getCString:buffer maxLength:4096 encoding:NSASCIIStringEncoding];\n";
-print "  freopen(buffer, \"a\", stderr);\n";
-print "\n";
-print "  NSLog(@\"${headerFileName}Log loaded in: %@\", [[NSProcessInfo processInfo] processName]);\n";
-print "\n";
 
 # Start printing out the function hooks
 for ($i=0; $i<=$#functionArray; $i++)
